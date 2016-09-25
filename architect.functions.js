@@ -177,7 +177,12 @@ var architecture = { //deals with the room:  places structures when available, d
             
         }
         center = room.getPositionAt(Math.floor(centerx / list.length), Math.floor(centery/list.length));
-        radius = Math.max(center.x - minx, center.y - miny, maxx - center.x, maxy = centery) + 2;
+        radius = 0;
+        for(i = 0; i <list.length; i++){
+            rg = list[i].pos.getRangeTo(center);
+            if(rg > radius) radius = rg;
+        }
+        radius += 2
         return [center, radius];
         
     },
