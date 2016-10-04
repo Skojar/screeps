@@ -36,6 +36,7 @@ module.exports.loop = function() {
 	for(var name in Game.spawns){
 	    var spawn = Game.spawns[name];
 	    spawn.memory.fullness = spawn.room.energyAvailable/spawn.room.energyCapacityAvailable;
+	    spawn.memory.patients = _.filter(spawn.room.find(FIND_MY_CREEPS), (creep) => creep.memory.task == 'convalesce')
 		if(Game.time % 50 == 0) managepopulation.run(spawn);
 		taskassignment.run(spawn);
 		if(Game.time % 20 == 0) console.log('fuel:',(spawn.memory.fullness * 100).toFixed(0) + '%');
@@ -67,3 +68,9 @@ module.exports.loop = function() {
 
     //***********spiral test***********
 }
+
+/* emergency new creep:
+
+Game.spawns['Spawn1'].createCreep([WORK,MOVE,CARRY], undefined, {role: 'worker', lvl: 1, home: Game.spawns['Spawn1'].id, busy: false})
+
+*/
