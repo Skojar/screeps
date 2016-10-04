@@ -1,0 +1,179 @@
+/*
+ * Module code goes here. Use 'module.exports' to export things:
+ * module.exports.thing = 'a thing';
+ *
+ * You can import it from another modules like this:
+ * var mod = require('roomarchitecture');
+ * mod.thing == 'a thing'; // true
+ */
+
+module.exports = {
+    //handles geography related stuff, like placing sructures
+    //call run(spawn) for each spawn
+    
+    run: function(spawn){
+        //organized by how frequently things happen        
+        this.perTick(spawn);
+        if(Game.time % 99 == 0) this.perCent(spawn);
+        if(Game.time % 999 == 0) this.perCent(spawn);
+    },
+    
+    perTick: function(spawn){
+        //run every tick
+
+    },
+    
+    perCent: function(spawn){
+        //run every hundred ticks
+    },
+    
+    perMil: function(spawn){
+        //run every thousand ticks
+    },
+    
+    /* Things that need to be placed:
+        towers
+        storage
+        extensions
+        walls
+        ramparts
+        
+    */
+    /* Things that need to be claculated:
+        array of important points in room
+        center of this array
+        radius of this array
+        point between spawn and controller
+    */
+    
+    pointsOfInterest: function(spawn){
+        //returns an array of important structures and features of a room
+        var list = spawn.room.find(FIND_MY_STRUCTURES);
+        list = list.concat(spawn.room.find(FIND_SOURCES));
+        list = list.concat(spawn.room.find(FIND_MINERALS));
+        return list;
+    },
+    
+    centerOfInterest: function(spawn){
+        //returns the central point of the points of Interest (as RoomPostion)
+        var list = this.pointsOfInterest(spawn);
+        var x = 0; var y = 0;
+        for(p = 0; p < list.length; p++){
+            x += list[p].pos.x;
+            y += list[p].pos.y;
+        }
+        x = Math.floor(x/list.length);
+        y = Math.floor(y/list.length);
+        return spawn.room.getPositionAt(x,y);
+    },
+    
+    radiusOfInterest: function(spawn){
+        //returns radius of a circle centered on centerofinterest and including all points of interest
+        var list = this.pointsOfInteres(spawn);
+        var center = this.centerOfInterest(spawn);
+        var radius = 0;
+        for(p = 0; p <list.length; p++){
+            radius = Math.max(list[p].pos.getRangeTo(center),radius);
+        }
+        return Math.ceil(radius + 2);
+    },
+    
+    centerOfControl: function(spawn){
+        //returns the central point between the spawn and the room controller
+        //good place for first tower
+        var x = Math.floor((spawn.pos.x + spawn.room.controller.pos.x)/2);
+        var y = Math.floor((spawn.pos.y + spawn.room.controller.pos.y)/2);
+        return spawn.room.getPositionAt(x,y);
+    },
+    
+    centerOfEnergy: function(spawn){
+        //returns central point of energy sources
+        //good place for storage
+    },
+    
+    furthersPoint: function(spawn){
+        //returns the point of interest furthest from the center of interest
+    },
+    
+    weightedCenter: function(spawn){
+        //returns the center of points of interest excluding the furthest point(s)
+    },
+    
+    antifulcrum: function(spawn){
+        //returns midpoint between weightedCenter and furthest point(s)
+        //good place for second tower
+    },
+    
+    allowed: function(spawn,type){
+        //return how many more of a given structure can be built, based on the controller
+        var allowed = this.allowedByLevel(type)[spawn.room.controller.level];
+        allowed -= _.filter(spawn.room.find(FIND_MY_STRUCTURES), (structure) => structure.structureType == type).length;
+        allowed -= _.filter(spawn.room.find(FIND_MY_CONSTRUCTION_SITES), (structure) => structure.structureType == type).length;
+        return allowed;
+    },
+    
+    allowedByLevel: function(type){
+        //an array showing how many are of a given structure are allowed by the game based on the controller level
+        switch (type){
+            case STRUCTURE_EXTENSION:
+                return [0,0,5,10,20,30,40,50,60];
+                break;
+            case STRUCTURE_TOWER:
+                return [0,0,0,1,1,2,2,3,6];
+                break;
+            case STRUCTURE_STORAGE:
+                return [0,0,0,0,1,1,1,1,1];
+                break;
+            default:
+                return [0,0,0,0,0,0,0,0,0];
+        }        
+    },
+    
+    place: function(what,where){
+        //tries to place a construction type of structure type 'what' at room position 'where'
+        //if it can't moves in a spiral around 'where' until it can, 
+        //but only if it fits certain criteria
+        var x = where.x;
+        var y = where.y;
+        var r = Game.map.rooms[where.roomName];
+        var d = 1;
+        var m = 1;
+        var placed = false;
+        var tries = 0;
+        while(!placed && tries < 25){
+            while((2 * x * d) < m){
+                if(this.placable(r,where.x + x,where.y + y)){
+                    if(r.createConstructionSite(where.x + x, where.y + y, what) == OK) placed = true;
+                }
+                x += d;
+                tries++;
+            }
+            while((2 * y * d) < m){
+                if(this.placable(r,where.x + x,where.y + y)){
+                    if(r.createConstructionSite(where.x + x,where.y + y, what) == OK) placed = true;
+                }
+                y += d;
+                tries++;                
+            }
+            d *= -1;
+            m += 1;
+        }
+    },
+    
+    placable: function(room,x,y){
+        //returns true if room position where:
+        if(x < 3 || y < 3 || x > 47 || y > 47) {                                                                                                    //  is in the spawn's room's buildable area
+            return false;
+            break;
+        }
+        var verdict = true;
+        var where = room.getPositionAt(x,y);
+        if(where.getRangeTo(this.centerOfInterest) >= this.radiusOfInterest) verdict = false;                                                   //  is inside the radius of interest
+        if(Game.map.getTerrainAt(where) == 'wall') verdict = false;                                                                             //  isn't a terrain wall
+        if(_.filter(where.lookFor(LOOK_STRUCTURES), (structure) => structure.structureType != STRUCTURE_ROAD).length > 0) verdict = false;      //  doesn't already have a non-road structure on it
+        if(where.lookFor(LOOK_CONSTRUCTION_SITES)) verdict = false;                                                                             //  there's not already a construction site
+        return (verdict ? where : verdict);
+    }
+    
+    
+};
