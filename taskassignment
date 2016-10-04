@@ -55,7 +55,6 @@ module.exports = {
 
 		//if any creeps are left over still available, have them upgrade
 		while(this.availableCreeps(spawn).length > 0) this.assignTask(spawn.room.controller,'upgrade',this.availableCreeps(spawn));
-		spawn.memory.patients = _.filter(spawn.room.find(FIND_MY_CREEPS), (creep) => creep.memory.task == 'convalesce')
 	},
 	
 	energyRequests: function(spawn){
