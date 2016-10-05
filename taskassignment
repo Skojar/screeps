@@ -12,8 +12,11 @@ module.exports = {
     //all other functions are referenced in it.
 	run: function(spawn){
 		//assign tasks to closest available creep
-		//first check if upgrading isn't more important than anything else
+		
+		//first get the list of creeps who are available to do these tasks 
 		var roster = this.availableCreeps(spawn);
+
+		//then check if upgrading isn't more important than anything else		
 		if(roster.length > 0){
 		    if(spawn.room.controller.ticksToDowngrade <5000 || spawn.room.controller.level <2) roster = this.assignTask(spawn.room.controller,'upgrade',roster);
 		}
