@@ -17,26 +17,19 @@ module.exports = {
 		if(roster.length > 0){
 		    if(spawn.room.controller.ticksToDowngrade <5000 || spawn.room.controller.level <2) roster = this.assignTask(spawn.room.controller,'upgrade',roster);
 		}
-		//if(this.availableCreeps(spawn).length > 0){
-		//    if(spawn.room.controller.ticksToDowngrade <5000 || spawn.room.controller.level <2) this.assignTask(spawn.room.controller,'upgrade',this.availableCreeps(spawn));
-		//}
 		
 		//then see if anything needs energy
 		if(roster.length > 0){
 		    var energies = this.energyRequests(spawn);
 		    for(var e = 0; e < energies.length; e++) roster = this.assignTask(energies[e],'supply', roster);		    
 		}
-		/*
-		if(this.availableCreeps(spawn).length > 0){
-		    var energies = this.energyRequests(spawn);
-		    for(var e = 0; e < energies.length; e++) this.assignTask(energies[e],'supply',this.availableCreeps(spawn));
-		}
-		*/
+
 		//then if anything needs repairing (that's not a wall or rampart)
 		if(roster.length > 0){
 		   var repairs = this.repairRequests(spawn);
 		   for(var r = 0; r < repairs.length; r++) roster = this.assignTask(repairs[r], 'repair', roster);
 		}
+		
 		//then if there's a storage unit, make a deposit for the future, but only if it's not the sole source of energy at the moment
         var bank = spawn.room.storage;		
 		if(spawn.room.find(FIND_SOURCES_ACTIVE).length > 0){
@@ -44,6 +37,7 @@ module.exports = {
 	              if(bank != undefined) roster = this.assignTask(bank,'supply',roster);
 		    }			
 		}
+		
 		//...and report on how much energy is stored, relative to 1. a source maximum and 2. the total energy capacity of the room
 		if(bank != undefined && Game.time % 20 == 0){ 
 		    var numerator = spawn.room.storage.store[RESOURCE_ENERGY];
@@ -51,13 +45,16 @@ module.exports = {
 		    spawn.memory.energyCycles = Math.floor(numerator/3000);
 		    console.log('stored:',(numerator/3000).toFixed(1) + "|" + (numerator/denominator).toFixed(1) + "\n");
 	    }
+		
 		//then if anything needs to be built, work on it
 		if(roster.length > 0){
 		    var builds = this.buildRequests(spawn);
 		    for(var b = 0; b < builds.length; b++) roster = this.assignTask(builds[b], 'build', roster);
 		}
+		
 		//then throw in upgrade again here for good measure
 		if(roster.length > 0) roster = this.assignTask(spawn.room.controller,'upgrade',roster);
+		
 		//then let creeps fortify where needed
 		if(roster.length > 0){
 		   var walls = this.fortificationRequests(spawn);
@@ -65,20 +62,14 @@ module.exports = {
 		}
 
 		//if any creeps are left over still available, have them upgrade
-		//while(roster.length > 0) roster = this.assignTask(spawn.room.controller,'upgrade',roster);
+		while(roster.length > 0) roster = this.assignTask(spawn.room.controller,'upgrade',roster);
 	},
 	
 	energyRequests: function(spawn){
 		//returns an array of everything in spawn's room that needs energy
-		/*
-	    return spawn.room.find(FIND_MY_STRUCTURES, {
-                    filter: (structure) => {
-                        return (structure.structureType == STRUCTURE_EXTENSION ||
-                                structure.structureType == STRUCTURE_SPAWN ||
-                                structure.structureType == STRUCTURE_TOWER) && structure.energy < structure.energyCapacity;
-                    }
-            });		
-        */
+		//first, extensions from farthest to nearest (from spawn)
+		//then towers,
+		//then the spawn
         var list = _.filter(spawn.room.find(FIND_MY_STRUCTURES), (structure) => (structure.structureType == STRUCTURE_EXTENSION && structure.energy < structure.energyCapacity)).sort(function(a,b){return b.pos.getRangeTo(spawn) - a.pos.getRangeTo(spawn)});
         list = list.concat(_.filter(spawn.room.find(FIND_MY_STRUCTURES), (structure) => (structure.structureType == STRUCTURE_TOWER && structure.energy < structure.energyCapacity)));
         list.push(spawn);
@@ -132,15 +123,13 @@ module.exports = {
 	
 	assignTask: function(target, task, roster){
 		//assigns target and task to the available creep closest to target.pos
-		//var assignee = target.pos.findClosestByRange(FIND_MY_CREEPS);//_.filter(target.pos.findClosestByRange(FIND_MY_CREEPS), (creep) => creep.memory.busy == false);
 		var assignee = this.findClosestFromList(target,roster);
 		if(roster[assignee] != undefined){ //if a creep was found, make it busy with this task
 			roster[assignee].memory.target = target.id;
 			roster[assignee].memory.task = task;
 			roster[assignee].memory.busy = true;
-			roster = roster.splice(assignee,1);
+			roster.splice(assignee,1); //remove the assigned creep from the list of available creeps
 		}
-		return roster;
+		return roster; //then return the updated list back to the caller
 	}
-	
 };
