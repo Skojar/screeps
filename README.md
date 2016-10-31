@@ -1,6 +1,7 @@
 # screeps
 This is the repository for my [screeps](https://screeps.com/) code.
 As is appropriate, everything is a work in progress.
+            [steam store page](http://store.steampowered.com/app/464350)
 
 ## Design Principles
 
